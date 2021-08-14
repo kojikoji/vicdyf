@@ -85,10 +85,10 @@ def embed_tr_mat(z_embed, tr_mat, gene_norm):
     d_embed *= (gene_norm.reshape(-1, 1) / d_norm.reshape(-1, 1))
     return(d_embed)
     
-def calc_gene_mean_sd(z, qd, dcoeff, model, num=50):
+def calc_gene_mean_sd(z, qd, dcoeff, model, sample_num=50):
     cell_num = z.shape[0]
     gene_num = z.shape[1]
-    zd_batch = z.view(1, cell_num, gene_num) + dcoeff * qd.sample((num,))
+    zd_batch = z.view(1, cell_num, gene_num) + dcoeff * qd.sample((sample_num,))
     px_ld_batch = model.dec_z(zd_batch) - model.dec_z(z).view(1, cell_num, -1)
     batch_std_mat = torch.std(px_ld_batch, dim=0)
     batch_mean_mat = torch.mean(px_ld_batch, dim=0)
@@ -97,7 +97,7 @@ def calc_gene_mean_sd(z, qd, dcoeff, model, num=50):
     return(gene_mean, gene_sd, batch_mean_mat, batch_std_mat)
     
 
-def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.05):
+def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.05, sample_num=10):
     x = vicdyf_exp.edm.s
     u = vicdyf_exp.edm.u
     vicdyf_exp.device = torch.device('cpu')
@@ -128,7 +128,7 @@ def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.
     pxd_zd_ld = vicdyf_exp.model.dec_z(zl + d)
     gene_vel = (pxd_zd_ld - px_z_ld).cpu().detach().numpy()
     gene_norm = np.linalg.norm(gene_vel, axis=1)
-    mean_gene_norm, gene_sd, mean_gene_vel, batch_std_mat = calc_gene_mean_sd(zl, qd, model_d_coeff, vicdyf_exp.model)
+    mean_gene_norm, gene_sd, mean_gene_vel, batch_std_mat = calc_gene_mean_sd(zl, qd, model_d_coeff, vicdyf_exp.model, sample_num=sample_num)
     batch_std_mat = batch_std_mat.cpu().detach().numpy()
     mean_gene_vel = mean_gene_vel.cpu().detach().numpy()
     adata.layers['vicdyf_expression'] = px_z_ld.cpu().detach().numpy()

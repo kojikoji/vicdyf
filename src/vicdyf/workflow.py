@@ -12,7 +12,7 @@ def estimate_dynamics(
             'num_dec_z_layers': 2    
         },
         lr=0.0001, val_ratio=0.05, test_ratio=0.1,
-        batch_size=300, num_workers=1):
+        batch_size=300, num_workers=1, sample_num=10):
     if use_genes == None:
         use_genes = adata.var_names
     utils.input_checks(adata)
@@ -43,5 +43,5 @@ def estimate_dynamics(
     print(f'Loss:{vicdyf_exp.test()}')
     torch.save(vicdyf_exp.model.state_dict(), param_path)
     adata.uns['param_path'] = param_path
-    adata = utils.post_process(adata, vicdyf_exp)
+    adata = utils.post_process(adata, vicdyf_exp, sample_num=sample_num)
     return(adata)
