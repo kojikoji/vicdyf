@@ -51,36 +51,6 @@ class Encoder(nn.Module):
         return(mu, logvar)
 
 
-class Energy(nn.Module):
-    def __init__(self, num_h_layers, x_dim, h_dim, z_dim):
-        super(Energy, self).__init__()
-        self.x2h = LinearReLU(x_dim, h_dim)
-        self.seq_nn = SeqNN(num_h_layers - 1, h_dim)
-        self.h2e = nn.Linear(h_dim, 2)
-        self.h2logvar = nn.Linear(h_dim, z_dim)
-
-    def forward(self, x):
-        pre_h = self.x2h(x)
-        post_h = self.seq_nn(pre_h)
-        e = self.h2e(post_h)[:, 0]
-        logvar = self.h2logvar(post_h)
-        return(e, logvar)
-
-
-class DynEncoder(nn.Module):
-    def __init__(self, num_h_layers, x_dim, h_dim, z_dim):
-        super(DynEncoder, self).__init__()
-        self.x2e = Energy(num_h_layers, x_dim, h_dim, z_dim)
-
-    def forward(self, x):
-        e, logvar = self.x2e(x)
-        one_vec = torch.full((x.size()[0],), 1).to(x.device)
-        mu = torch.autograd.grad(e, x, grad_outputs=one_vec, retain_graph=True, create_graph=True, allow_unused=True, only_inputs=True)[0]
-        # mu = torch.autograd.functional.vjp(self.x2e, x, v=, create_graph=True)[1]
-        # logvar = torch.full(mu.size(), 1).float().to(mu.device)
-        return(mu, logvar)
-
-
 class Decoder(nn.Module):
     def __init__(self, num_h_layers, z_dim, h_dim, x_dim):
         super(Decoder, self).__init__()
@@ -103,13 +73,10 @@ class VicDyf(nn.Module):
             x_dim, z_dim,
             enc_z_h_dim, enc_d_h_dim, dec_z_h_dim,
             num_enc_z_layers, num_enc_d_layers,
-            num_dec_z_layers, norm_input=False, edyn=False):
+            num_dec_z_layers, norm_input=False):
         super(VicDyf, self).__init__()
         self.enc_z = Encoder(num_enc_z_layers, x_dim, enc_z_h_dim, z_dim)
-        if edyn:
-            self.enc_d = DynEncoder(num_enc_d_layers, z_dim, enc_d_h_dim, z_dim)
-        else:
-            self.enc_d = Encoder(num_enc_d_layers, z_dim, enc_d_h_dim, z_dim)
+        self.enc_d = Encoder(num_enc_d_layers, z_dim, enc_d_h_dim, z_dim)
         self.dec_z = Decoder(num_enc_z_layers, z_dim, dec_z_h_dim, x_dim)
         self.dt = 1
         self.gamma_mean = 0.05

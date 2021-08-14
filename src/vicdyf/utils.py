@@ -21,10 +21,10 @@ def input_checks(adata):
     if (not 'spliced' in adata.layers.keys()) or (not 'unspliced' in adata.layers.keys()):
         raise ValueError(
             f'Input anndata object need to have layers named `spliced` and `unspliced`.')
-    if np.sum((adata.layers['spliced'] - adata.layers['spliced'].astype(int))**2) == 0:
+    if np.sum((adata.layers['spliced'] - adata.layers['spliced'].astype(int)))**2 != 0:
         raise ValueError('layers `spliced` includes non integer number, while count data is required for `spliced`.')
     
-    if np.sum((adata.layers['unspliced'] - adata.layers['unspliced'].astype(int))**2) == 0:
+    if np.sum((adata.layers['unspliced'] - adata.layers['unspliced'].astype(int)))**2 != 0:
         raise ValueError('layers `unspliced` includes non integer number, while count data is required for `unspliced`.')
     
     return(adata)
@@ -38,13 +38,19 @@ def define_exp(
             'num_enc_z_layers': 2, 'num_enc_d_layers': 2,
             'num_dec_z_layers': 2    
         },
-        lr=0.0001, num_parts=20, val_ratio=0.05, test_ratio=0.1,
-        batch_size=300, num_workers=1, min_count=50):
+        lr=0.0001, val_ratio=0.05, test_ratio=0.1,
+        batch_size=300, num_workers=1):
     # splice
     select_adata = adata[:, adata.var['vicdyf_used']]
-    s = torch.tensor(select_adata.layers['spliced'])
+    if type(select_adata.layers['spliced']) == np.ndarray:
+        s = torch.tensor(select_adata.layers['spliced'])
+    else:
+        s = torch.tensor(select_adata.layers['spliced'].toarray())
     # unspliced
-    u = torch.tensor(select_adata.layers['unspliced'])
+    if type(select_adata.layers['unspliced']) == np.ndarray:
+        u = torch.tensor(select_adata.layers['unspliced'])
+    else:
+        u = torch.tensor(select_adata.layers['unspliced'].toarray())
     # meta df
     model_params['x_dim'] = s.shape[1]
     vicdyf_exp = vicdyf.VicDyfExperiment(model_params, lr, s, u, test_ratio, batch_size, num_workers, validation_ratio=val_ratio)
@@ -96,7 +102,7 @@ def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.
     u = vicdyf_exp.edm.u
     vicdyf_exp.device = torch.device('cpu')
     vicdyf_exp.model = vicdyf_exp.model.to(vicdyf_exp.device)
-    z, d, qz, qd, px_z_ld, pu_zd_ld = vicdyf_exp.model(in_x)
+    z, d, qz, qd, px_z_ld, pu_zd_ld = vicdyf_exp.model(x)
     # make zl centered embedding
     zl = qz.loc
     qd_mu, qd_logvar = vicdyf_exp.model.enc_d(zl)
@@ -125,12 +131,12 @@ def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.
     mean_gene_norm, gene_sd, mean_gene_vel, batch_std_mat = calc_gene_mean_sd(zl, qd, model_d_coeff, vicdyf_exp.model)
     batch_std_mat = batch_std_mat.cpu().detach().numpy()
     mean_gene_vel = mean_gene_vel.cpu().detach().numpy()
-    adata = adata[:, np.sum(adata.layers['spliced'], axis=0) > 50]
-    adata.layers['lambda'] = px_z_ld.cpu().detach().numpy()
+    adata.layers['vicdyf_expression'] = px_z_ld.cpu().detach().numpy()
     adata.layers['vicdyf_velocity'] = gene_vel
     adata.layers['vicdyf_mean_velocity'] = mean_gene_vel
     adata.layers['vicdyf_fluctuation'] = batch_std_mat
-    adata.layers['vicdyf_deviation'] = gene_vel - mean_gene_vel
+    adata.obs['vicdyf_fluctuation'] = np.mean(adata.layers['vicdyf_fluctuation'])
+    adata.obs['vicdyf_velocity'] = np.mean(np.abs(adata.layers['vicdyf_velocity']))
     # calculate transition rate
     stoc_tr_mat = calc_tr_mat(zl.cpu().detach(), d.cpu().detach(), sigma)
     mean_tr_mat = calc_tr_mat(zl.cpu().detach(), dl.cpu().detach(), sigma)
@@ -139,8 +145,8 @@ def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.
     adata.obsm['X_vicdyf_umap'] = z_embed
     stoc_d_embed = embed_tr_mat(z_embed, stoc_tr_mat, gene_norm)
     mean_d_embed =embed_tr_mat(z_embed, mean_tr_mat, mean_gene_norm)
-    adata.obsm['stoc_tr_mat'] = stoc_tr_mat.detach().numpy()
-    adata.obsm['mean_tr_mat'] = mean_tr_mat.detach().numpy()
+    adata.obsp['stoc_tr_mat'] = stoc_tr_mat.detach().numpy()
+    adata.obsp['mean_tr_mat'] = mean_tr_mat.detach().numpy()
     adata.obsm['X_vicdyf_sdumap'] = stoc_d_embed.cpu().detach().numpy()
     adata.obsm['X_vicdyf_mdumap'] = mean_d_embed.cpu().detach().numpy()
     return(adata)

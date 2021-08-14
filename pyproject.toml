@@ -1,5 +1,5 @@
 [build-system]
-requries = [
+requires = [
 	 "setuptools>=42",
 	 "wheel"
 ]
