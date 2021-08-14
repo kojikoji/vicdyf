@@ -8,7 +8,7 @@ pip install vicdyf
 ```
 
 ## Usage
-You need to prepare an [`AnnData` object](https://anndata.readthedocs.io/en/latest/) which includes raw spliced and unspliced counts as `layers` named  as `spliced` and `unspliced` like a [scvelo datas](https://scvelo.readthedocs.io/Pancreas/). Apply `vicdyf` workflow on the object:
+You need to prepare an [`AnnData` object](https://anndata.readthedocs.io/en/latest/) which includes raw spliced and unspliced counts as `layers` named  as `spliced` and `unspliced` like a [scvelo data set](https://scvelo.readthedocs.io/Pancreas/). Apply `vicdyf` workflow on the object:
 
 ```python
 import vicdyf
