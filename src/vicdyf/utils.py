@@ -97,7 +97,7 @@ def calc_gene_mean_sd(z, qd, dcoeff, model, sample_num=50):
     return(gene_mean, gene_sd, batch_mean_mat, batch_std_mat)
     
 
-def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.05, sample_num=10):
+def post_process(adata, vicdyf_exp, sigma=0.05, n_neighbors=30, min_dist=0.1, dz_var_prop=0.05, sample_num=10):
     x = vicdyf_exp.edm.s
     u = vicdyf_exp.edm.u
     vicdyf_exp.device = torch.device('cpu')
@@ -135,18 +135,38 @@ def post_process(adata, vicdyf_exp, sigma=0.05, nn=30, mdist=0.1, dz_var_prop=0.
     adata.layers['vicdyf_velocity'] = gene_vel
     adata.layers['vicdyf_mean_velocity'] = mean_gene_vel
     adata.layers['vicdyf_fluctuation'] = batch_std_mat
-    adata.obs['vicdyf_fluctuation'] = np.mean(adata.layers['vicdyf_fluctuation'])
-    adata.obs['vicdyf_velocity'] = np.mean(np.abs(adata.layers['vicdyf_velocity']))
+    adata.obs['vicdyf_fluctuation'] = np.mean(adata.layers['vicdyf_fluctuation'], axis=1)
+    adata.obs['vicdyf_velocity'] = np.mean(np.abs(adata.layers['vicdyf_velocity']), axis=1)
+    adata.obs['vicdyf_mean_velocity'] = np.mean(np.abs(adata.layers['vicdyf_mean_velocity']), axis=1)
     # calculate transition rate
     stoc_tr_mat = calc_tr_mat(zl.cpu().detach(), d.cpu().detach(), sigma)
     mean_tr_mat = calc_tr_mat(zl.cpu().detach(), dl.cpu().detach(), sigma)
     # embed z
-    z_embed = embed_z(zl_mat, n_neighbors=nn, min_dist=mdist)
+    z_embed = embed_z(zl_mat, n_neighbors=n_neighbors, min_dist=min_dist)
     adata.obsm['X_vicdyf_umap'] = z_embed
-    stoc_d_embed = embed_tr_mat(z_embed, stoc_tr_mat, gene_norm)
-    mean_d_embed =embed_tr_mat(z_embed, mean_tr_mat, mean_gene_norm)
+    stoc_d_embed = embed_tr_mat(z_embed, stoc_tr_mat, adata.obs['vicdyf_velocity'].values)
+    mean_d_embed =embed_tr_mat(z_embed, mean_tr_mat, adata.obs['vicdyf_mean_velocity'].values)
     adata.obsp['stoc_tr_mat'] = stoc_tr_mat.detach().numpy()
     adata.obsp['mean_tr_mat'] = mean_tr_mat.detach().numpy()
     adata.obsm['X_vicdyf_sdumap'] = stoc_d_embed.cpu().detach().numpy()
     adata.obsm['X_vicdyf_mdumap'] = mean_d_embed.cpu().detach().numpy()
     return(adata)
+
+def change_visualization(adata, embeddings=None, n_neighbors=30, min_dist=0.1):
+    # embed z
+    if embeddings == None:
+        z_embed = embed_z(adata.obsm['X_vicdyf_zl'], n_neighbors=n_neighbors, min_dist=min_dist)
+    else:
+        if type(embeddings) == str:
+            z_embed = adata.obsm[embeddings]
+        else:
+            z_embed = embeddings
+    adata.obsm['X_vicdyf_umap'] = z_embed
+    stoc_tr_mat = torch.tensor(adata.obsp['stoc_tr_mat'])
+    mean_tr_mat = torch.tensor(adata.obsp['mean_tr_mat'])
+    stoc_d_embed = embed_tr_mat(z_embed, stoc_tr_mat, adata.obs['vicdyf_velocity'].values)
+    mean_d_embed =embed_tr_mat(z_embed, mean_tr_mat, adata.obs['vicdyf_mean_velocity'].values)
+    adata.obsm['X_vicdyf_sdumap'] = stoc_d_embed.cpu().detach().numpy()
+    adata.obsm['X_vicdyf_mdumap'] = mean_d_embed.cpu().detach().numpy()
+    return(adata)
+    

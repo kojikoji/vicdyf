@@ -11,8 +11,9 @@ def estimate_dynamics(
             'num_enc_z_layers': 2, 'num_enc_d_layers': 2,
             'num_dec_z_layers': 2    
         },
-        lr=0.0001, val_ratio=0.05, test_ratio=0.1,
-        batch_size=300, num_workers=1, sample_num=10):
+        lr=0.001, val_ratio=0, test_ratio=0.05,
+        batch_size=100, num_workers=1, sample_num=10,
+        n_neighbors=30, min_dist=0.1):
     if use_genes == None:
         use_genes = adata.var_names
     utils.input_checks(adata)
@@ -28,7 +29,7 @@ def estimate_dynamics(
     print('Start first opt')
     for param in vicdyf_exp.model.enc_d.parameters():
         param.requires_grad = False
-    vicdyf_exp.init_optimizer(0.0001)
+    vicdyf_exp.init_optimizer(lr)
     vicdyf_exp.train_total(first_epoch)
     print('Done first opt')
     print(f'Loss:{vicdyf_exp.test()}')
@@ -37,11 +38,11 @@ def estimate_dynamics(
     vicdyf_exp.model.no_d_kld = False
     for param in vicdyf_exp.model.enc_d.parameters():
         param.requires_grad = True
-    vicdyf_exp.init_optimizer(0.0001)
+    vicdyf_exp.init_optimizer(lr)
     vicdyf_exp.train_total(second_epoch)
     print('Done second opt')
     print(f'Loss:{vicdyf_exp.test()}')
     torch.save(vicdyf_exp.model.state_dict(), param_path)
     adata.uns['param_path'] = param_path
-    adata = utils.post_process(adata, vicdyf_exp, sample_num=sample_num)
+    adata = utils.post_process(adata, vicdyf_exp, sample_num=sample_num, n_neighbors=n_neighbors, min_dist=min_dist)
     return(adata)

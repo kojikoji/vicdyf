@@ -23,7 +23,7 @@ class VicDyfDataManager():
         s = s.float()
         u = u.float()
         norm_mat = torch.sum(s, dim=1).view(-1, 1) * torch.sum(s, dim=0).view(1, -1)
-        norm_mat = norm_mat / torch.mean(norm_mat)
+        norm_mat = torch.mean(s) * norm_mat / torch.mean(norm_mat)
         self.s = s
         self.u = u
         self.norm_mat = norm_mat

@@ -84,6 +84,7 @@ class VicDyf(nn.Module):
         self.loggamma = Parameter(torch.Tensor(x_dim))
         self.logbeta = Parameter(torch.Tensor(x_dim))
         self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
         self.reset_parameters()
         self.no_lu = False
         self.no_d_kld = False
@@ -109,9 +110,7 @@ class VicDyf(nn.Module):
         pxd_zd_ld = self.dec_z(z + d)
         pxmd_zd_ld = self.dec_z(z - d)
         diff_px_zd_ld = pxd_zd_ld - pxmd_zd_ld
-        raw_gamma = self.softplus(self.loggamma)
-        normalize_coeff = self.gamma_mean / raw_gamma.mean()
-        gamma = self.dt * normalize_coeff * raw_gamma
+        gamma = self.softplus(self.loggamma)
         beta = self.softplus(self.logbeta) * self.dt
         pu_zd_ld = self.softplus(diff_px_zd_ld + px_z_ld * gamma) / beta
         return(z, d, qz, qd, px_z_ld, pu_zd_ld)
