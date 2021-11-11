@@ -7,8 +7,7 @@ scv.pp.moments(adata, n_pcs=30, n_neighbors=30)
 raw_adata = scv.datasets.pancreas()
 adata.layers['spliced'] = raw_adata[:, adata.var_names].layers['spliced']
 adata.layers['unspliced'] = raw_adata[:, adata.var_names].layers['unspliced']
-adata = vicdyf.workflow.estimate_dynamics(adata)#, first_epoch=10, second_epoch=10)
-adata = vicdyf.utils.change_visualization(adata, n_neighbors=100)
-adata = vicdyf.utils.change_visualization(adata, embeddings='X_vicdyf_umap')
+adata = vicdyf.workflow.estimate_dynamics(adata)
+adata = vicdyf.utils.change_visualization(adata, n_neighbors=30)
 scv.pl.velocity_embedding_grid(adata,X=adata.obsm['X_vicdyf_umap'], V=adata.obsm['X_vicdyf_mdumap'], color='vicdyf_fluctuation', show=False, basis='X_vicdyf_umap', density=0.3)
 plt.savefig('tutorial/pancreas_flow.png')

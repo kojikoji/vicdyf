@@ -77,7 +77,7 @@ class VicDyf(nn.Module):
         super(VicDyf, self).__init__()
         self.enc_z = Encoder(num_enc_z_layers, x_dim, enc_z_h_dim, z_dim)
         self.enc_d = Encoder(num_enc_d_layers, z_dim, enc_d_h_dim, z_dim)
-        self.dec_z = Decoder(num_enc_z_layers, z_dim, dec_z_h_dim, x_dim)
+        self.dec_z = Decoder(num_dec_z_layers, z_dim, dec_z_h_dim, x_dim)
         self.dt = 1
         self.gamma_mean = 0.05
         self.d_coeff = 0.01
